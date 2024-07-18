@@ -5,6 +5,7 @@ const CheckoutForm = ({ userId, priceId }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -13,15 +14,17 @@ const CheckoutForm = ({ userId, priceId }) => {
       return;
     }
 
+    setLoading(true);
     const cardElement = elements.getElement(CardElement);
 
-    const { error, paymentMethod } = await stripe.createPaymentMethod({
+    const { error: paymentMethodError, paymentMethod } = await stripe.createPaymentMethod({
       type: 'card',
       card: cardElement,
     });
 
-    if (error) {
-      setError(error.message);
+    if (paymentMethodError) {
+      setError(paymentMethodError.message);
+      setLoading(false);
       return;
     }
 
@@ -31,13 +34,15 @@ const CheckoutForm = ({ userId, priceId }) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        user_id: userId,
+        user_id: 123,
+        email: 'user@example.com', 
         payment_method_id: paymentMethod.id,
         price_id: priceId,
       }),
     });
 
     const subscription = await response.json();
+    setLoading(false);
 
     if (response.ok) {
       console.log('Subscription created successfully:', subscription);
@@ -47,15 +52,13 @@ const CheckoutForm = ({ userId, priceId }) => {
   };
 
   return (
-    <>  
-        <form onSubmit={handleSubmit}>
-            <CardElement />
-            <button type="submit" disabled={!stripe}>
-                Subscribe
-            </button>
-            {error && <div>{error}</div>}
-        </form>
-    </>
+    <form onSubmit={handleSubmit}>
+      <CardElement />
+      <button type="submit" disabled={!stripe || loading}>
+        {loading ? 'Processing...' : 'Subscribe'}
+      </button>
+      {error && <div>{error}</div>}
+    </form>
   );
 };
 
